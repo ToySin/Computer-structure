@@ -18,7 +18,7 @@ li $v0 5
 syscall # read_int placed in $v0
 
 slti $t0 $v0 2 # $t0 = ($v0 < 2)
-beq $t0 $zero L2 # if select procedure is 2 goto L
+beq $t0 $zero L2 # if select procedure is 2 goto L2
 
 L1:
 la $a0 ais
@@ -32,7 +32,7 @@ li $v0 4
 syscall # print_string "b is : "
 li $v0 5
 syscall # read_int placed in $v0
-add $s1 $v0 $zero # set $a1 by input value of b
+add $s1 $v0 $zero # $s1 = b
 sub $a0 $s0 $s1 # $a0 = a - b
 jal isMultofThree # goto isMultofThree
 j Exit
@@ -59,34 +59,29 @@ Exit:
 li $v0 10
 syscall # program end
 
+
 isMultofThree: # $a0 = a - b
-addi $t0 $t0 3
-# $t0 = 3
+addi $t0 $zero 3 # $t0 = 3
 div $a0 $t0
-mfhi $t0
-# $t0 = (a - b) % 3
-bne $t0 $zero Ln
+mfhi $t0 # $t0 = (a - b) % 3
+bne $t0 $zero Ln # if $t0 % 3 != 0 goto Ln
 li $v0 1
-syscall
-# print_int $a0 = a - b
+syscall # print_int $a0 = a - b
 la $a0 ismult
 li $v0 4
-syscall
-jr $ra
-# print_string " is multiple of three!"
+syscall # print_string " is multiple of three!"
+jr $ra # return
+
 Ln: # not multiple of three
 li $v0 1
-syscall
-# print_int $a0 = a - b
+syscall # print_int $a0 = a - b
 la $a0 isnmult
 li $v0 4
-syscall
-# print_string " is not multiple of three!"
-jr $ra
+syscall # print_string " is not multiple of three!"
+jr $ra # return
+
 
 myFibo:
-addi $sp $sp -4
-sw $a0 0($sp) # save $a0
 add $s0 $a0 $zero # $s0 = n
 addi $s1 $zero 1 # $s1 = i = 1 (i < n) do-while
 addi $t0 $t0 1 # $t0 init (0, 1)
@@ -112,9 +107,8 @@ add $t0 $t2 $zero # swap $t0 $t1
 addi $s1 $s1 1
 slt $t2 $s1 $s0 # if $t2 == 1 loop
 bne $t2 $zero Loop
-lw $a0 0($sp) # load $a0
-addi $sp $sp 4
 jr $ra
+
 
 
 
