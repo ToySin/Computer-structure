@@ -19,12 +19,13 @@ void	cache_init(Cache *cc, int type)
 	scanf("%d", &cc->size);
 	printf("%s Cache Blcok Size (B) : ", cache_type);
 	scanf("%d", &cc->block_size);
-
+	printf("%s Cache Associativity : ", cache_type);
+	scanf("%d", &cc->associate);
 
 	cc->blocks = cc->size / cc->block_size * 1024 / cc->associate;
 
-	cc->Valid = (bool *)malloc(sizeof(bool) * cc->blocks);
-	cc->Tag = (unsigned int *)malloc(sizeof(unsigned int) * cc->blocks);
+	cc->Valid = (int *)malloc(sizeof(int) * cc->blocks);
+	cc->Tag = (unsigned int **)malloc(sizeof(unsigned int *) * cc->blocks);
 	if (!cc->Valid || !cc->Tag)
 	{
 		printf("Memory is not allocated!\n");
@@ -32,7 +33,15 @@ void	cache_init(Cache *cc, int type)
 	}
 
 	for (int i = 0; i < cc->blocks; i++)
-		cc->Valid[i] = false;
+	{
+		cc->Valid[i] = 0;
+		cc->Tag[i] = (unsigned int *)malloc(sizeof(unsigned int) * cc->associate);
+		if (!cc->Tag[i])
+		{
+			printf("Memory is not allocated!\n");
+			exit(1);
+		}
+	}
 	cc->hit_rate = 0;
 	cc->miss_rate = 0;
 }

@@ -9,11 +9,11 @@ SRCS = \
 source/cache_free.c \
 source/cache_hit.c \
 source/cache_init.c \
-source/cache_is_hit.c \
-source/cache_is_miss.c \
+source/cache_match_block_index.c \
 source/cache_miss.c \
 source/cache_process.c \
 source/cache_rate_print.c \
+source/cache_refresh_block.c \
 source/file_read_line.c \
 source/file_read.c \
 simulator.c

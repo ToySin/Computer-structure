@@ -25,24 +25,24 @@ typedef struct Cache
 {
 	unsigned int	size;
 	unsigned int	block_size;
-	unsigned int	blocks;
 	unsigned int	associate;
-	int				hit_rate;
-	int				miss_rate;
+	unsigned int	blocks;
 
-	bool			*Valid;
-	unsigned int	*Tag;
+	unsigned int	hit_rate;
+	unsigned int	miss_rate;
+
+	unsigned int	*Valid;
+	unsigned int	**Tag;
 }					Cache;
 
-bool	cache_is_miss(Cache *cc);
-bool	cache_is_hit(Cache *cc);
-
+int		cache_match_block_index(Cache *cc);
 void	cache_init(Cache *cc, int type);
 void	cache_free(Cache *cc);
-
 void	cache_process(Cache *cc);
-void	cache_hit(Cache *cc);
+void	cache_hit(Cache *cc, int block_index);
 void	cache_miss(Cache *cc);
+
+void	cache_refresh_block(Cache *cc, int b_idx);
 
 void	cache_rate_print(Cache *cc, int type);
 
