@@ -19,7 +19,7 @@ void	cache_rate_print(Cache *cc, int type)
 	total_acess = cc->miss_rate + cc->hit_rate;
 	printf("\n");
 	printf("%s cache\n", cache_type);
-	printf("	     Acess : %6d\n", total_acess);
+	printf("	    Access : %6d\n", total_acess);
 	printf("	 Miss rate : %6d\n", cc->miss_rate);
 	printf("	Miss ratio : %.4f\n", (float)cc->miss_rate / total_acess);
 	printf("\n");

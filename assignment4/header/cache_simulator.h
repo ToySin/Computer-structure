@@ -4,7 +4,6 @@
 # include <stdio.h>
 # include <stdlib.h>
 # include <string.h>
-# include <stdbool.h>
 
 # define DATA_TYPE 0
 # define INST_TYPE 1
@@ -35,15 +34,13 @@ typedef struct Cache
 	unsigned int	**Tag;
 }					Cache;
 
-int		cache_match_block_index(Cache *cc);
 void	cache_init(Cache *cc, int type);
 void	cache_free(Cache *cc);
+int		cache_match_block_index(Cache *cc);
 void	cache_process(Cache *cc);
 void	cache_hit(Cache *cc, int block_index);
 void	cache_miss(Cache *cc);
-
 void	cache_refresh_block(Cache *cc, int b_idx);
-
 void	cache_rate_print(Cache *cc, int type);
 
 void	file_read();

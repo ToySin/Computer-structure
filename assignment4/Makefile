@@ -27,6 +27,9 @@ all: $(TARGET)
 
 test: $(TEST_TARGET)
 
+onefile:
+	$(CC) -o cache_simulator_challenge.exe cache_simulator_challenge.c
+
 %.o: %.c
 	$(CC) -c -o $@ $^ -I $(INCDIR)
 
