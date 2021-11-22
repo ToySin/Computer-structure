@@ -19,13 +19,8 @@ source/file_read.c \
 simulator.c
 OBJS = $(SRCS:.c=.o)
 
-TEST_SRCS = \
-test.c
-TEST_OBJS = $(TEST_SRCS:.c=.o)
 
 all: $(TARGET)
-
-test: $(TEST_TARGET)
 
 onefile:
 	$(CC) -o cache_simulator_challenge.exe cache_simulator_challenge.c
@@ -36,13 +31,9 @@ onefile:
 $(TARGET): $(OBJS)
 	$(CC) -o $@ $^
 
-$(TEST_TARGET): $(TEST_OBJS)
-	$(CC) -o $@ $^
-
-
 
 clean:
-	rm -f $(OBJS) $(TEST_OBJS)
+	rm -f $(OBJS)
 
 fclean: clean
-	rm -f $(TARGET) $(TEST_TARGET)
+	rm -f $(TARGET) cache_simulator_challenge.exe
