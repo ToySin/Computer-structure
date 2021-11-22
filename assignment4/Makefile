@@ -13,10 +13,9 @@ source/cache_is_hit.c \
 source/cache_is_miss.c \
 source/cache_miss.c \
 source/cache_process.c \
+source/cache_rate_print.c \
 source/file_read_line.c \
 source/file_read.c \
-source/rate_init.c \
-source/rate_print.c \
 simulator.c
 OBJS = $(SRCS:.c=.o)
 

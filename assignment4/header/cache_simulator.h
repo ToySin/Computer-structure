@@ -6,6 +6,10 @@
 # include <string.h>
 # include <stdbool.h>
 
+# define DATA_TYPE 0
+# define INST_TYPE 1
+# define UNIF_TYPE 2
+
 ///////////////////////////////////////////////////////////////
 FILE 			*fp;
 ////////////////////////////////////////////////////////////////
@@ -16,15 +20,15 @@ unsigned int	address_tag;
 unsigned int	cache_index;
 unsigned int	block_offset;
 ///////////////////////////////////////////////////////////////
-int				hit_rate;
-int				miss_rate;
-///////////////////////////////////////////////////////////////
 
 typedef struct Cache
 {
 	unsigned int	size;
 	unsigned int	block_size;
 	unsigned int	blocks;
+	unsigned int	associate;
+	int				hit_rate;
+	int				miss_rate;
 
 	bool			*Valid;
 	unsigned int	*Tag;
@@ -33,19 +37,16 @@ typedef struct Cache
 bool	cache_is_miss(Cache *cc);
 bool	cache_is_hit(Cache *cc);
 
-void	cache_init(Cache *cc);
+void	cache_init(Cache *cc, int type);
 void	cache_free(Cache *cc);
 
 void	cache_process(Cache *cc);
 void	cache_hit(Cache *cc);
 void	cache_miss(Cache *cc);
 
+void	cache_rate_print(Cache *cc, int type);
 
 void	file_read();
-void	file_read_line(Cache *cc);
-
-
-void	rate_init();
-void	rate_print();
+void	file_read_line();
 
 #endif

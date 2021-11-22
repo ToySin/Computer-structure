@@ -2,7 +2,7 @@
 
 void	cache_miss(Cache *cc)
 {
-	miss_rate++;
+	cc->miss_rate++;
 	cc->Tag[cache_index] = address_tag;
 	cc->Valid[cache_index] = true;
 }

@@ -2,5 +2,5 @@
 
 void	cache_hit(Cache *cc)
 {
-	hit_rate++;
+	cc->hit_rate++;
 }
