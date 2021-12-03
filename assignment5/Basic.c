@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 /**************************************/
 
@@ -38,10 +39,15 @@ unsigned int reg[32] = { 0 };
 
 /**************************************/
 
+unsigned int Inst_Fetch(unsigned int pc);
+unsigned int Add(unsigned int pc, unsigned int immediate);
 unsigned int Sign_Extend(unsigned int inst_16);
 unsigned int Shift_Left_2(unsigned int inst);
 
 void print_reg_mem(void);
+
+void print_oper(unsigned int inst_31_26);
+void print_control_state(void);
 
 /**************************************/
 
@@ -65,7 +71,7 @@ int main(void)
 	unsigned int jump_addr = 0;
 	unsigned int mem_result = 0;
 	int total_cycle = 0;
-	
+
 	// register initialization
 	/**************************************/
 	reg[8] = 41621;
@@ -77,7 +83,7 @@ int main(void)
 	/**************************************/
 	mem[40] = 3578;
 
-	if ( !(fp = fopen("input.txt", "r")) )
+	if ( !(fp = fopen("input_file/3.txt", "r")) )
 	{
 		printf("error: file open fail !!\n");
 		exit(1);
@@ -97,6 +103,7 @@ int main(void)
 	control.Jump = 0;
 	control.Branch = 0;
 	control.MemRead = 0;
+	control.MemtoReg = 0;
 	control.ALUOp = 0;
 	control.MemWrite = 0;
 	control.ALUSrc = 0;
@@ -109,7 +116,7 @@ int main(void)
 
 	pc = 0;
 
-	while (pc < 64)
+	while (pc < 20)
 	{
 		// pc +4
 		pc_add_4 = Add(pc, 4);
@@ -118,7 +125,7 @@ int main(void)
 		inst = Inst_Fetch(pc);
 		printf("Instruction = %08x \n", inst);
 
-		
+
 		// instruction decode
 		inst_31_26 = inst >> 26;
 		inst_25_21 = (inst & 0x03e00000) >> 21;
@@ -127,16 +134,32 @@ int main(void)
 		inst_15_0 = inst & 0x0000ffff;
 		inst_25_0 = inst & 0x03ffffff;
 
-		//printf("%x, %x, %x, %x, %x, %x", inst_31_26, inst_25_21, inst_20_16, inst_15_11, inst_15_0, inst_25_0);
+		printf("inst_31_26: %x\n", inst_31_26);
+		printf("inst_25_21: %x\n", inst_25_21);
+		printf("inst_20_16: %x\n", inst_20_16);
+		printf("inst_15_11: %x\n", inst_15_11);
+		printf("inst_15_00: %x\n", inst_15_0);
+		printf("inst_25_00: %x\n", inst_25_0);
 
 
 
 		/********************************/
-		
+
 		// implementation
-
+		control.RegDst = (inst_31_26 == 0);
+		control.Jump = (inst_31_26 == 2);
+		control.Branch = (inst_31_26 == 4);
+		control.MemRead = (inst_31_26 == 35);
+		control.MemtoReg = (inst_31_26 == 35);
+		control.ALUOp = ((inst_31_26 == 0) << 1) + (inst_31_26 == 4);
+		control.MemWrite = (inst_31_26 == 43);
+		control.ALUSrc = (inst_31_26 == 35) || (inst_31_26 == 43);
+		control.RegWrite = (inst_31_26 == 0) || (inst_31_26 == 35);
 		/********************************/
-		
+
+		print_oper(inst_31_26);
+		print_control_state();
+
 		total_cycle++;
 
 		// result
@@ -145,15 +168,25 @@ int main(void)
 		printf("Total cycle : %d \n", total_cycle);
 		print_reg_mem();
 		/********************************/
-
+		pc = pc_add_4;
 		//system("pause");
 	}
 
 	printf("\n ***** Processor END !!! ***** \n");
-	
+
 
 
 	return 0;
+}
+
+unsigned int Add(unsigned int pc, unsigned int immediate)
+{
+	return pc + immediate;
+}
+
+unsigned int Inst_Fetch(unsigned int pc)
+{
+	return mem[pc];
 }
 
 unsigned int Sign_Extend(unsigned int inst_16)
@@ -167,7 +200,7 @@ unsigned int Sign_Extend(unsigned int inst_16)
 	{
 		inst_32 = inst_16;
 	}
-	
+
 	return inst_32;
 }
 
@@ -188,7 +221,7 @@ void print_reg_mem(void)
 		printf("reg[%02d] = %08d        reg[%02d] = %08d        reg[%02d] = %08d        reg[%02d] = %08d \n",
 			reg_index, reg[reg_index], reg_index+8, reg[reg_index+8], reg_index+16, reg[reg_index+16], reg_index+24, reg[reg_index+24] );
 	}
-	
+
 	printf("===================== REGISTER =====================\n");
 
 	printf("\n===================== MEMORY =====================\n");
@@ -201,3 +234,42 @@ void print_reg_mem(void)
 	printf("===================== MEMORY =====================\n");
 }
 
+void print_oper(unsigned int inst_31_26)
+{
+	printf("Oper: ");
+	switch (inst_31_26)
+	{
+		case 0:
+		printf("R-format\n");
+		break;
+
+		case 2:
+		printf("Jump\n");
+		break;
+
+		case 4:
+		printf("BEQ\n");
+		break;
+
+		case 35:
+		printf("LW\n");
+		break;
+
+		case 43:
+		printf("SW\n");
+		break;
+	}
+}
+
+void print_control_state(void)
+{
+	printf("RegDst: %d\n", control.RegDst);
+	printf("Jump: %d\n", control.Jump);
+	printf("Branch: %d\n", control.Branch);
+	printf("MemRead: %d\n", control.MemRead);
+	printf("MemtoReg: %d\n", control.MemtoReg);
+	printf("ALUOp: %d\n", control.ALUOp);
+	printf("MemWrite: %d\n", control.MemWrite);
+	printf("ALUSrc: %d\n", control.ALUSrc);
+	printf("RegWrite: %d\n", control.RegWrite);
+}
