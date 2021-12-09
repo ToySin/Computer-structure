@@ -7,10 +7,13 @@ SRCS = Basic.c
 all: $(TARGET)
 
 basic:
-	$(CC) -o basic.out Basic.c
+	$(CC) -o basic.out Basic.c -g
 
 adv:
-	$(CC) -o advanced.out Advanced.c
+	$(CC) -o advanced.out Advanced.c -g
 
 $(TARGET): $(SRCS)
 	$(CC) -o $@ $^
+
+clean:
+	rm -f *.out

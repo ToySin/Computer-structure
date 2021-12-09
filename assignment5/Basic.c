@@ -39,6 +39,8 @@ unsigned int reg[32] = { 0 };
 
 /**************************************/
 
+void Control_Signal(unsigned int opcode);
+
 unsigned int Inst_Fetch(unsigned int pc);
 unsigned int Add(unsigned int pc, unsigned int immediate);
 unsigned int Sign_Extend(unsigned int inst_16);
@@ -116,7 +118,7 @@ int main(void)
 
 	pc = 0;
 
-	while (pc < 20)
+	while (pc < 44)
 	{
 		// pc +4
 		pc_add_4 = Add(pc, 4);
@@ -141,11 +143,13 @@ int main(void)
 		printf("inst_15_00: %x\n", inst_15_0);
 		printf("inst_25_00: %x\n", inst_25_0);
 
-
-
 		/********************************/
 
 		// implementation
+		Control_Signal(inst_31_26);
+		print_oper(inst_31_26);
+		print_control_state();
+
 		control.RegDst = (inst_31_26 == 0);
 		control.Jump = (inst_31_26 == 2);
 		control.Branch = (inst_31_26 == 4);
@@ -177,6 +181,32 @@ int main(void)
 
 
 	return 0;
+}
+
+void Control_Signal(unsigned int opcode)
+{
+	unsigned int	opcode_5 = opcode & 0x20;
+	unsigned int	opcode_4 = opcode & 0x10;
+	unsigned int	opcode_3 = opcode & 0x08;
+	unsigned int	opcode_2 = opcode & 0x04;
+	unsigned int	opcode_1 = opcode & 0x02;
+	unsigned int	opcode_0 = opcode & 0x01;
+
+	unsigned int	R_format = !opcode_5 && !opcode_4 && !opcode_3 && !opcode_2 && !opcode_1 && !opcode_0;
+	unsigned int	BEQ = !opcode_5 && !opcode_4 && !opcode_3 && opcode_2 && !opcode_1 && !opcode_0;
+	unsigned int	Lw = opcode_5 && !opcode_4 && !opcode_3 && !opcode_2 && opcode_1 && opcode_0;
+	unsigned int	Sw = opcode_5 && !opcode_4 && opcode_3 && !opcode_2 && opcode_1 && opcode_0;
+	unsigned int	Jump = !opcode_5 && !opcode_4 && !opcode_3 && !opcode_2 && opcode_1 && !opcode_0;
+
+	control.RegDst = R_format;
+	control.Jump = Jump;
+	control.Branch = BEQ;
+	control.MemRead = Lw;
+	control.MemtoReg = Lw;
+	control.ALUOp = (R_format << 1) + BEQ;
+	control.MemWrite = Sw;
+	control.ALUSrc = Lw || Sw;
+	control.RegWrite = R_format || Lw;
 }
 
 unsigned int Add(unsigned int pc, unsigned int immediate)
