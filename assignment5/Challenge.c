@@ -568,3 +568,4 @@ void	print_pipeline_regi_state(unsigned int pc)
 	printf("35 Lw\n");
 	printf("43 Sw\n");
 }
+
