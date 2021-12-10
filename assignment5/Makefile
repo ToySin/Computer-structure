@@ -12,6 +12,9 @@ basic:
 adv:
 	$(CC) -o advanced.out Advanced.c -g
 
+ch:
+	$(CC) -o challenge.out Challenge.c -g
+
 $(TARGET): $(SRCS)
 	$(CC) -o $@ $^
 

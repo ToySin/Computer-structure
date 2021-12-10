@@ -33,12 +33,18 @@ struct ALU
 
 struct IF_ID
 {
+	unsigned int	is_activated;
+
 	unsigned int	pc_add_4;
 	unsigned int	inst;
+
+	unsigned int	inst_31_26_for_print;
 };
 
 struct ID_EX
 {
+	unsigned int	is_activated;
+
 	unsigned char	RegDst;
 	unsigned char	ALUOp;
 	unsigned char	ALUSrc;
@@ -55,10 +61,14 @@ struct ID_EX
 	unsigned int	RegRd;
 	unsigned int	extended_immediate;
 	struct Reg_Read	reg_read;
+
+	unsigned int	inst_31_26_for_print;
 };
 
 struct EX_MEM
 {
+	unsigned int	is_activated;
+
 	unsigned char	MemRead;
 	unsigned char	MemWrite;
 	unsigned char	Branch;
@@ -67,18 +77,24 @@ struct EX_MEM
 
 	unsigned int	branch_addr;
 	struct ALU		alu;
-	unsigned int	Reg_Read_2;
+	unsigned int	Write_data;
 	unsigned int	RegRd;
+
+	unsigned int	inst_31_26_for_print;
 };
 
 struct MEM_WB
 {
+	unsigned int	is_activated;
+
 	unsigned char	RegWrite;
 	unsigned char	MemtoReg;
 
 	unsigned int	MEM_result;
 	unsigned int	ALU_result;
 	unsigned int	RegRd;
+
+	unsigned int	inst_31_26_for_print;
 };
 
 struct Control	control = { 0 };
@@ -91,26 +107,8 @@ struct MEM_WB	mem_wb = { 0 };
 unsigned int	mem[64] = { 0 };
 unsigned int	reg[32] = { 0 };
 
-unsigned int	pc = 0;
-unsigned int	PCSrc = 0;
-unsigned int	pc_add_4 = 0;
-unsigned int	pc_add_inst = 0;
+char			*None = "None";
 
-unsigned int	inst = 0;
-unsigned int	inst_31_26 = 0;
-unsigned int	inst_25_21 = 0;
-unsigned int	inst_20_16 = 0;
-unsigned int	inst_15_11 = 0;
-unsigned int	inst_15_0 = 0;
-unsigned int	inst_ext_32 = 0;
-unsigned int	inst_ext_shift = 0;
-unsigned int	inst_25_0 = 0;
-
-unsigned int	mux_result = 0;
-unsigned char	ALU_control = 0;
-unsigned int	branch_addr = 0;
-unsigned int	jump_addr = 0;
-unsigned int	mem_result = 0;
 /**************************************/
 
 unsigned int	Inst_Fetch(unsigned int read_addr);
@@ -139,12 +137,12 @@ unsigned int	Jump(unsigned int pc_add_4, unsigned int inst_25_0);
 
 void			Set_IF_ID(unsigned int pc_add_4, unsigned int inst);
 void			Set_ID_EX(unsigned int inst_25_21, unsigned int inst_20_16, unsigned int inst_15_11, unsigned int extended);
-void			Set_EX_MEM(void);
-void			Set_MEM_WB(void);
+void			Set_EX_MEM(unsigned int branch_addr);
+void			Set_MEM_WB(unsigned int mem_result);
 
 
 void			print_reg_mem(void);
-void			print_pipeline_regi_state(void);
+void			print_pipeline_regi_state(unsigned int pc);
 
 void			print_control_state(void);
 void			print_oper(unsigned int inst_31_26);
@@ -157,6 +155,26 @@ int main(void)
 	FILE	*fp;
 	int		file_num;
 	int		total_cycle = 0;
+
+	unsigned int	pc = 0;
+	unsigned int	PCSrc = 0;
+	unsigned int	pc_add_4 = 0;
+	unsigned int	pc_add_inst = 0;
+
+	unsigned int	inst = 0;
+	unsigned int	inst_31_26 = 0;
+	unsigned int	inst_25_21 = 0;
+	unsigned int	inst_20_16 = 0;
+	unsigned int	inst_15_11 = 0;
+	unsigned int	inst_15_0 = 0;
+	unsigned int	inst_25_0 = 0;
+	unsigned int	inst_ext_32 = 0;
+	unsigned int	inst_ext_shift = 0;
+
+	unsigned char	ALU_control = 0;
+	unsigned int	branch_addr = 0;
+	unsigned int	jump_addr = 0;
+	unsigned int	mem_result = 0;
 
 	// register initialization
 	/**************************************/
@@ -208,58 +226,23 @@ int main(void)
 	}
 	/**************************************/
 
+	pc = 0;
 
 	print_reg_mem();
 	printf("\n ***** Processor START !!! ***** \n");
 
-	pc = 0;
-	printf("PC : %d \n", pc);
-	printf("Total cycle : %d \n", total_cycle);
-
-	while (pc < 64)
+	while (pc < 64 | mem_wb.is_activated)
 	{
-		// IF execute
-		pc = Mux(PCSrc, if_id.pc_add_4, ex_mem.branch_addr);
-		pc_add_4 = Add(pc, 4);
-		inst = Inst_Fetch(pc);
-
-		printf("Instruction = %08x\n", inst);
-		printf("\n");
-
-
-		// ID execute
-		inst_31_26 = inst >> 26;
-		inst_25_21 = (inst & 0x03e00000) >> 21;
-		inst_20_16 = (inst & 0x001f0000) >> 16;
-		inst_15_11 = (inst & 0x0000f800) >> 11;
-		inst_15_0 = inst & 0x0000ffff;
-		inst_25_0 = inst & 0x03ffffff;
-
-		Register_Read(inst_25_21, inst_20_16);
-		Control_Signal(inst_31_26);
-		jump_addr = Jump(pc_add_4, inst_25_0);
-
-
-		// EX execute
-		ALU_control = ALU_Control_Signal(inst_15_0 & 0x003f);
-		ALU_func(ALU_control, reg_read.Read_data_1, \
-				Mux(control.ALUSrc, reg_read.Read_data_2, Sign_Extend(inst_15_0)));
-
-		// MEM execute
-		mem_result = Memory_Access(control.MemWrite, control.MemRead, alu.ALU_result, reg_read.Read_data_2);
-		branch_addr = Branch(pc_add_4, Sign_Extend(inst_15_0));
-		pc = Mux(control.Jump, Mux(control.Branch && alu.zero, pc_add_4, branch_addr), jump_addr);
-
 
 
 		// WB execute
 		Register_Write(mem_wb.RegWrite, \
-				mem_wb.RegRd, Mux(mem_wb.MemtoReg, mem_wb.MEM_result, mem_wb.ALU_result));
+				mem_wb.RegRd, Mux(mem_wb.MemtoReg, mem_wb.ALU_result, mem_wb.MEM_result));
 
 		// MEM execute
 		PCSrc = ex_mem.Branch && ex_mem.alu.zero;
 		mem_result = Memory_Access(ex_mem.MemWrite, ex_mem.MemRead, \
-				ex_mem.alu.ALU_result, ex_mem.Reg_Read_2);
+				ex_mem.alu.ALU_result, ex_mem.Write_data);
 
 		// EX execute
 		ALU_control = ALU_Control_Signal(id_ex.extended_immediate & 0x003f);
@@ -273,50 +256,63 @@ int main(void)
 		inst_15_11 = (if_id.inst & 0x0000f800) >> 11;
 		inst_15_0 = if_id.inst & 0x0000ffff;
 		inst_25_0 = if_id.inst & 0x03ffffff;
+		inst_ext_32 = Sign_Extend(inst_15_0);
+		inst_ext_shift = Shift_Left_2(inst_ext_32);
 		Control_Signal(inst_31_26);
 		Register_Read(inst_25_21, inst_20_16);
+		jump_addr = Jump(pc_add_4, inst_25_0);
 
+		// IF execute
+		if (pc < 64)
+		{
+			pc = Mux(control.Jump, Mux(PCSrc, pc_add_4, ex_mem.branch_addr), jump_addr);
+			pc_add_4 = Add(pc, 4);
+			inst = Inst_Fetch(pc);
+		}
 
+		printf("PC :          %d \n", pc);
+		printf("Total cycle : %d \n", total_cycle);
+		printf("Instruction : %08x\n", inst);
+		printf("\n");
+
+		print_pipeline_regi_state(pc);
+		printf("\n");
 
 		// Update pipeline register
-		Set_MEM_WB();
-		Set_EX_MEM();
-		Set_ID_EX(inst_25_21, inst_20_16, inst_15_11, Sign_Extend(inst_15_0));
+		Set_MEM_WB(mem_result);
+		Set_EX_MEM(branch_addr);
+		Set_ID_EX(inst_25_21, inst_20_16, inst_15_11, inst_ext_32);
 		Set_IF_ID(pc_add_4, inst);
 
 		total_cycle++;
 
-		// status print
-		/********************************/
-
-		print_pipeline_regi_state();
-
-		/********************************/
-
 		// result
 		/********************************/
 		print_reg_mem();
-		printf("PC :          %d\n", pc);
-		printf("Total cycle : %d\n", total_cycle);
 		/********************************/
 	}
+
+	printf("PC :          %d \n", pc);
+	printf("Total cycle : %d \n", total_cycle);
+	print_pipeline_regi_state(pc);
+
 
 	printf("\n ***** Processor END !!! ***** \n");
 	return (0);
 }
 
-unsigned int Inst_Fetch(unsigned int read_addr)
+unsigned int	Inst_Fetch(unsigned int read_addr)
 {
 	return (mem[read_addr]);
 }
 
-void Register_Read(unsigned int read_reg_1, unsigned int read_reg_2)
+void	Register_Read(unsigned int read_reg_1, unsigned int read_reg_2)
 {
 	reg_read.Read_data_1 = reg[read_reg_1];
 	reg_read.Read_data_2 = reg[read_reg_2];
 }
 
-void Control_Signal(unsigned int opcode)
+void	Control_Signal(unsigned int opcode)
 {
 	unsigned int	opcode_5 = opcode & 0x20;
 	unsigned int	opcode_4 = opcode & 0x10;
@@ -342,19 +338,19 @@ void Control_Signal(unsigned int opcode)
 	control.RegWrite	= R_format || Lw;
 }
 
-unsigned char ALU_Control_Signal(unsigned char signal)
+unsigned char	ALU_Control_Signal(unsigned char signal)
 {
 	unsigned char	ALU_control = 0;
 
-	ALU_control += (control.ALUOp & 0x01) || ((control.ALUOp & 0x02) && (signal & 0x02));
+	ALU_control += (id_ex.ALUOp & 0x01) || ((id_ex.ALUOp & 0x02) && (signal & 0x02));
 	ALU_control = ALU_control << 1;
-	ALU_control += !(control.ALUOp & 0x02) || !(signal & 0x04);
+	ALU_control += !(id_ex.ALUOp & 0x02) || !(signal & 0x04);
 	ALU_control = ALU_control << 1;
-	ALU_control += (control.ALUOp & 0x02) && ((signal & 0x08) || (signal & 0x01));
+	ALU_control += (id_ex.ALUOp & 0x02) && ((signal & 0x08) || (signal & 0x01));
 	return (ALU_control);
 }
 
-void ALU_func(unsigned char ALU_control, unsigned int a, unsigned int b)
+void	ALU_func(unsigned char ALU_control, unsigned int a, unsigned int b)
 {
 	if (ALU_control & 0x08)
 		alu.ALU_result = NOR(a, b);
@@ -369,7 +365,7 @@ void ALU_func(unsigned char ALU_control, unsigned int a, unsigned int b)
 	alu.zero = Slt(a, b);
 }
 
-unsigned int Memory_Access(unsigned char MemWrite, unsigned char MemRead, unsigned int addr, unsigned int write_data)
+unsigned int	Memory_Access(unsigned char MemWrite, unsigned char MemRead, unsigned int addr, unsigned int write_data)
 {
 	if (MemWrite)
 		mem[addr] = write_data;
@@ -384,7 +380,7 @@ void	Register_Write(unsigned char RegWrite, unsigned int Write_reg, unsigned int
 		reg[Write_reg] = Write_data;
 }
 
-unsigned int Sign_Extend(unsigned int inst_16)
+unsigned int	Sign_Extend(unsigned int inst_16)
 {
 	unsigned int	inst_32 = 0;
 
@@ -447,12 +443,21 @@ unsigned int	Jump(unsigned int pc_add_4, unsigned int inst_25_0)
 
 void	Set_IF_ID(unsigned int pc_add_4, unsigned int inst)
 {
+	if (0 <= pc_add_4 && pc_add_4 < 64)
+		if_id.is_activated = 1;
+	else
+		if_id.is_activated = 0;
+
 	if_id.pc_add_4 = pc_add_4;
 	if_id.inst = inst;
+
+	if_id.inst_31_26_for_print = inst >> 26;
 }
 
 void	Set_ID_EX(unsigned int inst_25_21, unsigned int inst_20_16, unsigned int inst_15_11, unsigned int extended)
 {
+	id_ex.is_activated = if_id.is_activated;
+
 	id_ex.RegDst = control.RegDst;
 	id_ex.ALUOp = control.ALUOp;
 	id_ex.ALUSrc = control.ALUSrc;
@@ -469,26 +474,40 @@ void	Set_ID_EX(unsigned int inst_25_21, unsigned int inst_20_16, unsigned int in
 	id_ex.RegRd = inst_15_11;
 	id_ex.extended_immediate = extended;
 	id_ex.reg_read = reg_read;
+
+	id_ex.inst_31_26_for_print = if_id.inst_31_26_for_print;
 }
 
-void	Set_EX_MEM()
+void	Set_EX_MEM(unsigned int branch_addr)
 {
+	ex_mem.is_activated = id_ex.is_activated;
+
 	ex_mem.MemRead = id_ex.MemRead;
 	ex_mem.MemWrite = id_ex.MemWrite;
 	ex_mem.Branch = id_ex.Branch;
 	ex_mem.RegWrite = id_ex.RegWrite;
 	ex_mem.MemtoReg = id_ex.MemtoReg;
 
-	ex_mem.branch_addr =
+	ex_mem.branch_addr = branch_addr;
 	ex_mem.alu = alu;
-	ex_mem.Reg_Read_2 = id_ex.reg_read.Read_data_2;
+	ex_mem.Write_data = id_ex.reg_read.Read_data_2;
 	ex_mem.RegRd = Mux(id_ex.RegDst, id_ex.RegRt, id_ex.RegRd);
+
+	ex_mem.inst_31_26_for_print = id_ex.inst_31_26_for_print;
 }
 
-void	Set_MEM_WB()
+void	Set_MEM_WB(unsigned int mem_result)
 {
+	mem_wb.is_activated = ex_mem.is_activated;
+
 	mem_wb.MemtoReg = ex_mem.MemtoReg;
 	mem_wb.RegWrite = ex_mem.RegWrite;
+
+	mem_wb.MEM_result = mem_result;
+	mem_wb.ALU_result = ex_mem.alu.ALU_result;
+	mem_wb.RegRd = ex_mem.RegRd;
+
+	mem_wb.inst_31_26_for_print = ex_mem.inst_31_26_for_print;
 }
 
 void	print_reg_mem(void)
@@ -516,103 +535,36 @@ void	print_reg_mem(void)
 	printf("===================== MEMORY =====================\n");
 }
 
-void	print_pipeline_regi_state(void)
+void	print_pipeline_regi_state(unsigned int pc)
 {
-	printf(" ==== MEM/WB ====\n");
-	printf("RegWrite: %d\n", mem_wb.RegWrite);
-	printf("MemtoReg: %d\n", mem_wb.MemtoReg);
-	printf("\n");
-	printf(" ==== EX/MEM ====\n");
-	printf("RegWrite: %d\n", ex_mem.RegWrite);
-	printf("MemtoReg: %d\n", ex_mem.MemtoReg);
-	printf("MemRead:  %d\n", ex_mem.MemRead);
-	printf("MemWrite: %d\n", ex_mem.MemWrite);
-	printf("Branch:   %d\n", ex_mem.Branch);
-	printf("\n");
-	printf(" ==== ID/EX ====\n");
-	printf("RegWrite: %d\n", id_ex.RegWrite);
-	printf("MemtoReg: %d\n", id_ex.MemtoReg);
-	printf("MemRead:  %d\n", id_ex.MemRead);
-	printf("MemWrite: %d\n", id_ex.MemWrite);
-	printf("Branch:   %d\n", id_ex.Branch);
-	printf("RegDst:   %d\n", id_ex.RegDst);
-	printf("ALUOp:    %d\n", id_ex.ALUOp);
-	printf("ALUSrc:   %d\n", id_ex.ALUSrc);
-	printf("Jump:     %d\n", id_ex.Jump);
-	printf("\n");
-}
-
-void	print_control_state(void)
-{
-	printf("RegDst:   %d\n", control.RegDst);
-	printf("Jump:     %d\n", control.Jump);
-	printf("Branch:   %d\n", control.Branch);
-	printf("MemRead:  %d\n", control.MemRead);
-	printf("MemtoReg: %d\n", control.MemtoReg);
-	printf("ALUOp:    %d\n", control.ALUOp);
-	printf("MemWrite: %d\n", control.MemWrite);
-	printf("ALUSrc:   %d\n", control.ALUSrc);
-	printf("RegWrite: %d\n", control.RegWrite);
-}
-
-void print_oper(unsigned int inst_31_26)
-{
-	printf("Oper:        ");
-	switch (inst_31_26)
-	{
-		case 0:
-		printf("R-format\n");
-		break;
-
-		case 2:
-		printf("Jump\n");
-		break;
-
-		case 4:
-		printf("BEQ\n");
-		break;
-
-		case 35:
-		printf("LW\n");
-		break;
-
-		case 43:
-		printf("SW\n");
-		break;
-
-		default:
-		printf("Wrong Opcode\n");
-		break;
-	}
-}
-
-void	print_alu_control(unsigned int ALU_control)
-{
-	printf("ALU_control: ");
-	switch (ALU_control)
-	{
-		case 0:
-		printf("AND\n");
-		break;
-
-		case 1:
-		printf("OR\n");
-		break;
-
-		case 2:
-		printf("ADD\n");
-		break;
-
-		case 6:
-		printf("SUB\n");
-		break;
-
-		case 7:
-		printf("SLT\n");
-		break;
-
-		case 12:
-		printf("NOR\n");
-		break;
-	}
+	printf("             | ==== IF/ID ==== | ==== Control ==== | ==== ID/EX ==== | ==== EX/MEM ==== | ==== MEM/WB ==== \n");
+	printf("-------------+-----------------+-------------------+-----------------+------------------+------------------┐ \n");
+	printf("   Activated | %4d   | %18d                  | %8d        | %9d         | %4d   |\n", pc < 64, if_id.is_activated, id_ex.is_activated, ex_mem.is_activated, mem_wb.is_activated);
+	printf("-------------+-----------------+-------------------+-----------------+------------------+------------------┐ \n");
+	printf("      RegDst | %15s | %17d | %15d | %16s | %16s |\n", None, control.RegDst, id_ex.RegDst, None, None);
+	printf("        Jump | %15s | %17d | %15d | %16s | %16s |\n", None, control.Jump, id_ex.Jump, None, None);
+	printf("      Branch | %15s | %17d | %15d | %16d | %16s |\n", None, control.Branch, id_ex.Branch, ex_mem.Branch, None);
+	printf("     MemRead | %15s | %17d | %15d | %16d | %16s |\n", None, control.MemRead, id_ex.MemRead, ex_mem.MemRead, None);
+	printf("    MemtoReg | %15s | %17d | %15d | %16d | %16d |\n", None, control.MemtoReg, id_ex.MemtoReg, ex_mem.MemtoReg, mem_wb.MemtoReg);
+	printf("       ALUOp | %15s | %17d | %15d | %16s | %16s |\n", None, control.ALUOp, id_ex.ALUOp, None, None);
+	printf("    MemWrite | %15s | %17d | %15d | %16d | %16s |\n", None, control.MemWrite, id_ex.MemWrite, ex_mem.MemWrite, None);
+	printf("      ALUSrc | %15s | %17d | %15d | %16s | %16s |\n", None, control.ALUSrc, id_ex.ALUSrc, None, None);
+	printf("    RegWrite | %15s | %17d | %15d | %16d | %16d |\n", None, control.RegWrite, id_ex.RegWrite, ex_mem.RegWrite, mem_wb.RegWrite);
+	printf("-------------+-----------------+-------------------+-----------------+------------------+------------------┤ \n");
+	printf("      Opcode | %15d | %17d | %15d | %16d | %16d |\n", if_id.inst_31_26_for_print, if_id.inst_31_26_for_print, id_ex.inst_31_26_for_print, ex_mem.inst_31_26_for_print, mem_wb.inst_31_26_for_print);
+	printf("  Reg_read_1 | %15s | %17s | %15d | %16s | %16s |\n", None, None, id_ex.reg_read.Read_data_1 , None, None);
+	printf("  Reg_read_2 | %15s | %17s | %15d | %16d | %16s |\n", None, None, id_ex.reg_read.Read_data_2 , ex_mem.Write_data, None);
+	printf("       RegRs | %15s | %17s | %15d | %16s | %16s |\n", None, None, id_ex.RegRs, None, None);
+	printf("       RegRt | %15s | %17s | %15d | %16s | %16s |\n", None, None, id_ex.RegRt, None, None);
+	printf("       RegRd | %15s | %17s | %15d | %16d | %16d |\n", None, None, id_ex.RegRd, ex_mem.RegRd , mem_wb.RegRd);
+	printf("  ALU_result | %15s | %17s | %15s | %16d | %16d |\n", None, None, None, ex_mem.alu.ALU_result, mem_wb.ALU_result);
+	printf("  MEM_result | %15s | %17s | %15s | %16s | %16d |\n", None, None, None, None, mem_wb.MEM_result);
+	printf(" Branch_addr | %15s | %17s | %15s | %16d | %16s |\n", None, None, None, ex_mem.branch_addr, None);
+	printf("-------------+-----------------+-------------------+-----------------+------------------+------------------┘ \n");
+	printf("Opcode\n");
+	printf(" 0 R-format\n");
+	printf(" 4 Beq\n");
+	printf(" 2 Jump\n");
+	printf("35 Lw\n");
+	printf("43 Sw\n");
 }
