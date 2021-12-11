@@ -260,8 +260,9 @@ int main(void)
 		// print_pipeline_regi_state와 print_assignment 중 선택하시면 됩니다.
 		// print_assignment가 과제에서 요구한 출력 형태입니다.
 
-		// print_pipeline_regi_state(pc);
 		print_assignment();
+		printf("\n");
+		print_pipeline_regi_state(pc);
 		printf("\n");
 		/********************************/
 	}

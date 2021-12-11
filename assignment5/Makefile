@@ -15,6 +15,9 @@ adv:
 ch:
 	$(CC) -o challenge.out Challenge.c -g
 
+non:
+	$(CC) -o non.out Non_hazard_Challenge.c -g
+
 $(TARGET): $(SRCS)
 	$(CC) -o $@ $^
 
