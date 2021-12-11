@@ -314,7 +314,7 @@ void ALU_func(unsigned char ALU_control, unsigned int a, unsigned int b)
 		alu.ALU_result = OR(a, b);
 	else
 		alu.ALU_result = AND(a, b);
-	alu.zero = Slt(a, b);
+	alu.zero = Slt(Sub(a, b), 1);
 }
 
 unsigned int Memory_Access(unsigned char MemWrite, unsigned char MemRead, unsigned int addr, unsigned int write_data)
