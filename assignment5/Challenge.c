@@ -17,6 +17,7 @@ struct Control
 	unsigned char	Branch;
 	unsigned char	RegWrite;
 	unsigned char	MemtoReg;
+	unsigned char	IF_Flush;
 };
 
 struct Reg_Read
@@ -55,7 +56,6 @@ struct ID_EX
 	unsigned char	RegWrite;
 	unsigned char	MemtoReg;
 
-	unsigned int	pc_add_4;
 	unsigned int	RegRs;
 	unsigned int	RegRt;
 	unsigned int	RegRd;
@@ -97,10 +97,16 @@ struct MEM_WB
 	unsigned int	inst_31_26_for_print;
 };
 
-struct FWD_Unit
+struct ALU_FWD_Unit
 {
-	unsigned char	Forwarding_A;
-	unsigned char	Forwarding_B;
+	unsigned char	Forwarding_Rs;
+	unsigned char	Forwarding_Rt;
+};
+
+struct Branch_FWD_Unit
+{
+	unsigned char	Forwarding_Rs;
+	unsigned char	Forwarding_Rt;
 };
 
 struct Hazard_Detection_Unit
@@ -117,7 +123,8 @@ struct IF_ID					if_id = { 0 };
 struct ID_EX					id_ex = { 0 };
 struct EX_MEM					ex_mem = { 0 };
 struct MEM_WB					mem_wb = { 0 };
-struct FWD_Unit					fwd_unit = { 0 };
+struct ALU_FWD_Unit				alu_fwd_unit = { 0 };
+struct Branch_FWD_Unit			branch_fwd_unit = { 0 };
 struct Hazard_Detection_Unit	hd_unit = { 0 };
 unsigned int					mem[64] = { 0 };
 unsigned int					reg[32] = { 0 };
@@ -131,7 +138,8 @@ void			Hazard_Signal(unsigned int inst_25_21, unsigned int inst_20_16);
 void			Register_Read(unsigned int read_reg_1, unsigned int read_reg_2);
 void			Control_Signal(unsigned int opcode);
 unsigned char	ALU_Control_Signal(unsigned char signal);
-void			FWD_Signal(void);
+void			ALU_FWD_Signal(void);
+void			Branch_FWD_Signal(void);
 void			ALU_func(unsigned char ALU_control, unsigned int a, unsigned int b);
 unsigned int	Memory_Access(unsigned char MemWrite, unsigned char MemRead, unsigned int addr, unsigned int write_data);
 void			Register_Write(unsigned char RegWrite, unsigned int Write_reg, unsigned int Write_data);
@@ -151,7 +159,7 @@ unsigned int	NOR(unsigned int a, unsigned int b);
 unsigned int	Branch(unsigned int pc_add_4, unsigned int addr);
 unsigned int	Jump(unsigned int pc_add_4, unsigned int inst_25_0);
 
-void			Set_IF_ID(unsigned int pc_add_4, unsigned int inst);
+void			Set_IF_ID(unsigned char IF_Flush, unsigned int pc_add_4, unsigned int inst);
 void			Set_ID_EX(unsigned int zero_signal, unsigned int inst_25_21, unsigned int inst_20_16, unsigned int inst_15_11, unsigned int extended);
 void			Set_EX_MEM(unsigned int branch_addr, unsigned int mem_write_data);
 void			Set_MEM_WB(unsigned int mem_result);
@@ -260,18 +268,13 @@ int main(void)
 
 		// EX execute
 
-		// 실행하려는데 버블이 발생하는 것 감지
-		// Lw, BEQ
-		// 버블 발생은? pc IF_ID만 유지하고 나머지는 0으로 돌리면 된다.
-
 		ALU_control = ALU_Control_Signal(id_ex.extended_immediate & 0x003f);
-		FWD_Signal();
-		mem_write_data = Mux421(fwd_unit.Forwarding_B, id_ex.reg_read.Read_data_2, reg_write_data, ex_mem.alu.ALU_result, 0);
+		ALU_FWD_Signal();
+		mem_write_data = Mux421(alu_fwd_unit.Forwarding_Rt, id_ex.reg_read.Read_data_2, reg_write_data, ex_mem.alu.ALU_result, 0);
 		ALU_func(ALU_control, \
-				Mux421(fwd_unit.Forwarding_A, id_ex.reg_read.Read_data_1, reg_write_data, ex_mem.alu.ALU_result, 0), \
+				Mux421(alu_fwd_unit.Forwarding_Rs, id_ex.reg_read.Read_data_1, reg_write_data, ex_mem.alu.ALU_result, 0), \
 				Mux(id_ex.ALUSrc, mem_write_data, id_ex.extended_immediate));
-		branch_addr = Branch(id_ex.pc_add_4, inst_ext_shift);
-		printf("Forwarding A B: %d %d\n", fwd_unit.Forwarding_A, fwd_unit.Forwarding_B);
+		printf("Forwarding A B: %d %d\n", alu_fwd_unit.Forwarding_Rs, alu_fwd_unit.Forwarding_Rt);
 
 		// ID execute
 		inst_31_26 = if_id.inst >> 26;
@@ -283,10 +286,11 @@ int main(void)
 		inst_ext_32 = Sign_Extend(inst_15_0);
 		inst_ext_shift = Shift_Left_2(inst_ext_32);
 
-		Hazard_Signal(inst_25_21, inst_20_16);
-
-		Control_Signal(inst_31_26);
 		Register_Read(inst_25_21, inst_20_16);
+		Hazard_Signal(inst_25_21, inst_20_16);
+		Control_Signal(inst_31_26);
+
+		branch_addr = Branch(if_id.pc_add_4, inst_ext_shift);
 		jump_addr = Jump(pc_add_4, inst_25_0);
 
 		// IF execute
@@ -310,7 +314,7 @@ int main(void)
 		Set_EX_MEM(branch_addr, mem_write_data);
 		Set_ID_EX(hd_unit.Control_nop, inst_25_21, inst_20_16, inst_15_11, inst_ext_32);
 		if (hd_unit.IF_IDWrite)
-			Set_IF_ID(pc_add_4, inst);
+			Set_IF_ID(control.IF_Flush, pc_add_4, inst);
 
 		total_cycle++;
 
@@ -339,6 +343,8 @@ void	Hazard_Signal(unsigned int inst_25_21, unsigned int inst_20_16)
 	hd_unit.Control_nop = 0;
 	hd_unit.IF_IDWrite = 1;
 	hd_unit.PCWrite = 1;
+
+	// lw hazard bubble
 	if (id_ex.MemRead)
 	{
 		if ((id_ex.RegRt == inst_25_21) || (id_ex.RegRt == inst_20_16))
@@ -346,6 +352,29 @@ void	Hazard_Signal(unsigned int inst_25_21, unsigned int inst_20_16)
 			hd_unit.Control_nop = 1;
 			hd_unit.IF_IDWrite = 0;
 			hd_unit.PCWrite = 0;
+		}
+	}
+
+	// branch lw hazard bubble (need 2 stall)
+	if (control.Branch)
+	{
+		if (id_ex.MemRead)
+		{
+			if ((id_ex.RegRt == inst_25_21) || (id_ex.RegRt == inst_20_16))
+			{
+				hd_unit.Control_nop = 1;
+				hd_unit.IF_IDWrite = 0;
+				hd_unit.PCWrite = 0;
+			}
+		}
+		else if (ex_mem.MemRead)
+		{
+			if ((ex_mem.RegRd == inst_25_21) || (ex_mem.RegRd == inst_20_16))
+			{
+				hd_unit.Control_nop = 1;
+				hd_unit.IF_IDWrite = 0;
+				hd_unit.PCWrite = 0;
+			}
 		}
 	}
 }
@@ -510,17 +539,17 @@ unsigned int	Jump(unsigned int pc_add_4, unsigned int inst_25_0)
 	return (pc_add_4 & 0xf0000000 | (inst_25_0 << 2));
 }
 
-void	Set_IF_ID(unsigned int pc_add_4, unsigned int inst)
+void	Set_IF_ID(unsigned char IF_Flush, unsigned int pc_add_4, unsigned int inst)
 {
-	if (0 <= pc_add_4 && pc_add_4 < 64)
+	if (0 <= pc_add_4 && pc_add_4 < 64 && !IF_Flush)
 		if_id.is_activated = 1;
 	else
 		if_id.is_activated = 0;
 
-	if_id.pc_add_4 = pc_add_4;
-	if_id.inst = inst;
+	if_id.pc_add_4 = IF_Flush ? 0 : pc_add_4;
+	if_id.inst = IF_Flush ? 0 : inst;
 
-	if_id.inst_31_26_for_print = inst >> 26;
+	if_id.inst_31_26_for_print = IF_Flush ? 0 : inst >> 26;
 }
 
 void	Set_ID_EX(unsigned int zero_signal, unsigned int inst_25_21, unsigned int inst_20_16, unsigned int inst_15_11, unsigned int extended)
@@ -537,7 +566,6 @@ void	Set_ID_EX(unsigned int zero_signal, unsigned int inst_25_21, unsigned int i
 	id_ex.RegWrite = zero_signal ? 0 : control.RegWrite;
 	id_ex.MemtoReg = control.MemtoReg;
 
-	id_ex.pc_add_4 = if_id.pc_add_4;
 	id_ex.RegRs = inst_25_21;
 	id_ex.RegRt = inst_20_16;
 	id_ex.RegRd = inst_15_11;
@@ -631,11 +659,5 @@ void	print_pipeline_regi_state(unsigned int pc)
 	printf("  MEM_result | %15s | %17s | %15s | %16s | %16d |\n", None, None, None, None, mem_wb.MEM_result);
 	printf(" Branch_addr | %15s | %17s | %15s | %16d | %16s |\n", None, None, None, ex_mem.branch_addr, None);
 	printf("-------------+-----------------+-------------------+-----------------+------------------+------------------┘ \n");
-	printf("Opcode\n");
-	printf(" 0 R-format\n");
-	printf(" 4 Beq\n");
-	printf(" 2 Jump\n");
-	printf("35 Lw\n");
-	printf("43 Sw\n");
 }
 
